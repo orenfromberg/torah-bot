@@ -1,5 +1,5 @@
 var Snoocore = require('snoocore');
-
+var sefaria = require('./sefaria.js');
 var config = require('./config.json');
 // Our new instance associated with a single account.
 // It takes in various configuration options.
@@ -90,5 +90,17 @@ function getUnreadMessages() {
     // });
 }
 
-getUnreadMessages();
+// getUnreadMessages();
 // setInterval(getUnreadMessages, 5000);
+
+
+// get sefaria titles
+// sefaria.getTitles().then(titles => {
+//     processCommentsWithTitles(titles.books);
+// });
+
+// function processCommentsWithTitles(titles) {
+//     console.log(titles.length);
+// }
+
+// sefaria.getText("genesis", 1, 1).then(text => console.log(text));

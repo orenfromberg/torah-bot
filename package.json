@@ -1,0 +1,33 @@
+{
+  "name": "torah-bot",
+  "version": "1.0.0",
+  "description": "reddit bot that interfaces with sefaria",
+  "main": "app.js",
+  "dependencies": {
+    "es6-promise": "^3.3.1",
+    "isomorphic-fetch": "^2.2.1",
+    "snoocore": "^3.3.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/orenfromberg/torah-bot.git"
+  },
+  "keywords": [
+    "reddit",
+    "bot",
+    "sefaria",
+    "torah",
+    "judaism",
+    "hebrew"
+  ],
+  "author": "Oren Fromberg",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/orenfromberg/torah-bot/issues"
+  },
+  "homepage": "https://github.com/orenfromberg/torah-bot#readme"
+}
