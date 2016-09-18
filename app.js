@@ -112,13 +112,7 @@ function getUnreadMessages() {
 //     processCommentsWithTitles(titles.books);
 // });
 
-var titles = [
-    'Genesis',
-    'Exodus',
-    'Leviticus',
-    'Numbers',
-    'Deuteronomy'
-]
+var titles = require('./titles.json');
 
 function processCommentsWithTitles(titles) {
     console.log(titles.length)
