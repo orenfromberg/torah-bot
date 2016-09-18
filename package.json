@@ -6,7 +6,8 @@
   "dependencies": {
     "es6-promise": "^3.3.1",
     "isomorphic-fetch": "^2.2.1",
-    "snoocore": "^3.3.1"
+    "snoocore": "^3.3.1",
+    "xregexp": "^3.1.1"
   },
   "devDependencies": {},
   "scripts": {

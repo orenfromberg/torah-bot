@@ -1,6 +1,7 @@
 var Snoocore = require('snoocore');
 var sefaria = require('./sefaria.js');
 var config = require('./config.json');
+var XRegExp = require('xregexp');
 // Our new instance associated with a single account.
 // It takes in various configuration options.
 var reddit = new Snoocore({
@@ -18,18 +19,6 @@ var reddit = new Snoocore({
     }
 });
 
-// reddit('/message/unread').get().then(function(result) {
-//   console.log(result); 
-// });
-
-// reddit('/api/v1/scopes').get().then(function(result) {
-//   console.log(result); 
-// });
-
-// Instead of an HTTP verb, use a Snoocore helper `.listing`
-// It will return a "slice" for a listing that has various 
-// helpers attached to it.
-
 var numUpdates = 0;
 
 function markAsRead(message) {
@@ -42,15 +31,58 @@ function markAsRead(message) {
 }
 
 function handleComment(comment) {
-    //
-    console.log("handling comment");
+    console.log(comment);
 
-    // respond to comment
+    var str = titles.reduce((prev, curr) => {
+        var s;
+        if (prev === '')
+            s = curr;
+        else
+            s = prev + '|' + curr;
+        return s;
+    }, '')
+
+    // console.log(str);
+
+    var regex = XRegExp(`(${str})\\W+([0-9]+):([0-9]+)`);
+
+    var results = [];
+    XRegExp.forEach(comment.data.body, regex, function (match, i) {
+        results.push({
+            book: match[1].replace(/ /g, '_'),
+            chapter: match[2],
+            verse: match[3]
+        })
+    });
+
+    console.log(results);
+
+    // var response = '';
+
+    // results.forEach(result => {
+    //     sefaria.getText(result.book, result.chapter, result.verse)
+    //         .then(text => {
+    //             // format the comment
+    //             response = `**"${text.text}"** - *${result.book} ${result.chapter}:${result.verse}*`;
+    //         })
+    //         .catch(error => console.log(error))
+    // })
+    var responses = results.map(result => {
+        return sefaria.getText(result.book, result.chapter, result.verse)
+            .then(text => {
+                responses.push(`**"${text.text}"** - *${result.book} ${result.chapter}:${result.verse}*`);
+            })
+            .catch(error => console.log(error))
+    })
+
+
+
+    //console.log(text.text)
     reddit('/api/comment').post({
         api_type: 'json',
-        text: 'Shalom aleichem, I am /u/TorahBot.',
+        text: `**"${text.text}"** - *${result.book} ${result.chapter}:${result.verse}*`,
         thing_id: comment.data.name
-    }).then(markAsRead(comment)).catch(function(error) {
+    }).then(markAsRead(comment)).catch(function (error) {
         console.log("unable to respond: " + error)
     });
 
@@ -67,40 +99,30 @@ function getUnreadMessages() {
     numUpdates++;
     console.log("times updated: " + numUpdates);
     reddit('/message/unread').listing().then(function (slice) {
-
-        // This is the front page of /r/askreddit
-        // `slice.children` contains the contents of the page.
         console.log("processing first slice");
-        console.log(slice.children);
-
         slice.children.forEach(child => processChild(child));
-
-        // Get a promise for the next slice in this 
-        // listing (the next page!)
-        // return slice.next();
-
     })
-    // .then(function (slice) {
-
-    //     // This is the second page of /r/askreddit
-    //     console.log("second slice");
-    //     console.log(slice.children);
-    //     slice.children.forEach(child => processChild(child));
-
-    // });
 }
 
-// getUnreadMessages();
-// setInterval(getUnreadMessages, 5000);
 
+// var titleRegexes = [];
 
 // get sefaria titles
 // sefaria.getTitles().then(titles => {
 //     processCommentsWithTitles(titles.books);
 // });
 
-// function processCommentsWithTitles(titles) {
-//     console.log(titles.length);
-// }
+var titles = [
+    'Genesis',
+    'Exodus',
+    'Leviticus',
+    'Numbers',
+    'Deuteronomy'
+]
 
-// sefaria.getText("genesis", 1, 1).then(text => console.log(text));
+function processCommentsWithTitles(titles) {
+    console.log(titles.length)
+    getUnreadMessages();
+}
+
+processCommentsWithTitles(titles);
