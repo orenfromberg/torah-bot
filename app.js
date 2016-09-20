@@ -133,26 +133,20 @@ function printSlice(slice) {
   });
 }
 
-// get information about a user
-// reddit('/user/o_m_f_g/about').get().then(function(result) {
-
-//   console.log(result); // information about a user account
-
-//   // Use the listing helper to gracefully handle listings
-//   // Returns a promise for a slice -- a piece of a listing.
-//   return reddit(subredditComments).listing({ limit: 100, before: "" });
-// }).then(function(slice) {
-//   printSlice(slice);   // First page children
-//   return slice.next(); // A promise for the next slice in the listing
-// }).then(function(slice) {
-//   printSlice(slice);   // Second page children
-//   console.log('done!');
-// }).catch(function(error) {
-//   console.error('oh no!', error.stack);
-// });
-
-
-
+function getComment(item) {
+    return '---\n>' 
+        + item.text_he + '\n\n'
+        + '_\"' + item.text_en + '\"_  \n'
+        + '[' 
+        + item.book + ' '
+        + item.chapter + ':'
+        + item.verse + ']('
+        + 'http:\/\/www.sefaria.org\/'
+        + item.book + '.'
+        + item.chapter + '.'
+        + item.verse
+        + ')\n\n';
+}
 
 function handleChild(child) {
 
@@ -186,23 +180,20 @@ function handleChild(child) {
             .catch(error => console.log(error))
     })
 
-
     Promise.all(promises)
         .then(results => {
             var comment = '';
             results.forEach(item => {
-                comment = comment + '>' +item.text_he + '\n\n'
-                    + '_\"' + item.text_en + '\"_\n\n'
-                    + item.book + ' '
-                    + item.chapter + ':'
-                    + item.verse + '\n\n';
+                if (item.text_he === '') return;
+                comment = comment + getComment(item);
             })
             return comment;
         })
         .then(comment => {
+            if (comment === '') throw 'no comment';
             reddit('/api/comment').post({
                 api_type: 'json',
-                text: comment,
+                text: comment +  '---\n^\/u\/TorahBot ^is ^powered ^by ^[Sefaria](http:\/\/www.sefaria.org).\n\n',
                 thing_id: child.data.name
             }).catch(function (error) {
                 console.log("unable to respond: " + error)
