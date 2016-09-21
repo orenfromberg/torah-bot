@@ -5,11 +5,12 @@ var XRegExp = require('xregexp');
 var striptags = require('striptags');
 var trim = require('trim');
 
-const subredditComments = '/r/judaism/comments';
-//const subredditComments = '/r/test/comments';
-
+// const subredditComments = '/r/judaism/comments';
+const subredditComments = '/r/test/comments';
 var latestComment;
 var numUpdates = 0;
+var header = '^בס\"ד'; //todo add to top of comment
+var footer = '---\n^\/u\/TorahBot ^is ^powered ^by ^[Sefaria](http:\/\/www.sefaria.org).\n\n';
 
 // Our new instance associated with a single account.
 // It takes in various configuration options.
@@ -60,7 +61,8 @@ function handleChild(child) {
         })
     });
 
-    console.log(results);
+    console.log('text: ' + child.data.body);
+    console.log('matches: ' + results);
 
     // we have results, now fetch from sefaria.
 
@@ -91,7 +93,8 @@ function handleChild(child) {
             if (comment === '') throw 'no comment';
             reddit('/api/comment').post({
                 api_type: 'json',
-                text: comment +  '---\n^\/u\/TorahBot ^is ^powered ^by ^[Sefaria](http:\/\/www.sefaria.org).\n\n',
+                // text: comment +  '---\n^\/u\/TorahBot ^is ^powered ^by ^[Sefaria](http:\/\/www.sefaria.org).\n\n',
+                text: comment +  footer,
                 thing_id: child.data.name
             }).catch(function (error) {
                 console.log("unable to respond: " + error)
