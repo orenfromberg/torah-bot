@@ -2,9 +2,11 @@ var Snoocore = require('snoocore');
 var sefaria = require('./sefaria.js');
 var config = require('./config.json');
 var XRegExp = require('xregexp');
+var striptags = require('striptags');
+var trim = require('trim');
 
 const subredditComments = '/r/judaism/comments';
-// const subredditComments = '/r/test/comments';
+//const subredditComments = '/r/test/comments';
 
 var latestComment;
 var numUpdates = 0;
@@ -26,112 +28,7 @@ var reddit = new Snoocore({
     }
 });
 
-function markCommentAsRead(message) {
-    // console.log("marking comment as read");
-    reddit('/api/read_message').post({
-        id: message.data.name    
-    }).then(function () {
-        console.log("message " + message.data.name + " marked as read.")
-    });
-}
-
-function processComment(comment) {
-    console.log(comment);
-
-    var str = titles.reduce((prev, curr) => {
-        var s;
-        if (prev === '')
-            s = curr;
-        else
-            s = prev + '|' + curr;
-        return s;
-    }, '')
-
-    // console.log(str);
-
-    var regex = XRegExp(`(${str})\\W+([0-9]+):([0-9]+)`);
-
-    var results = [];
-    XRegExp.forEach(comment.data.body, regex, function (match, i) {
-        results.push({
-            book: match[1].replace(/ /g, '_'),
-            chapter: match[2],
-            verse: match[3]
-        })
-    });
-
-    console.log(results);
-
-    // var response = '';
-
-    // results.forEach(result => {
-    //     sefaria.getText(result.book, result.chapter, result.verse)
-    //         .then(text => {
-    //             // format the comment
-    //             response = `**"${text.text}"** - *${result.book} ${result.chapter}:${result.verse}*`;
-    //         })
-    //         .catch(error => console.log(error))
-    // })
-    var responses = results.map(result => {
-        return sefaria.getText(result.book, result.chapter, result.verse)
-            .then(text => {
-                responses.push(`**"${text.text}"** - *${result.book} ${result.chapter}:${result.verse}*`);
-            })
-            .catch(error => console.log(error))
-    })
-
-
-
-    //console.log(text.text)
-    reddit('/api/comment').post({
-        api_type: 'json',
-        text: `**"${text.text}"** - *${result.book} ${result.chapter}:${result.verse}*`,
-        thing_id: comment.data.name
-    }).then(markCommentAsRead(comment)).catch(function (error) {
-        console.log("unable to respond: " + error)
-    });
-
-}
-
-function processChild(child) {
-    if (child.kind === 't1')
-        processComment(child);
-    else // mark as read
-        markCommentAsRead(child);
-}
-
-function getUnreadMessages() {
-    numUpdates++;
-    console.log("times updated: " + numUpdates);
-    reddit('/message/unread').listing().then(function (slice) {
-        console.log("processing first slice");
-        slice.children.forEach(child => processChild(child));
-    })
-}
-
-
-// var titleRegexes = [];
-
-// get sefaria titles
-// sefaria.getTitles().then(titles => {
-//     processCommentsWithTitles(titles.books);
-// });
-
 var titles = require('./titles.json');
-
-// function processCommentsWithTitles(titles) {
-//     console.log(titles.length)
-//     getUnreadMessages();
-// }
-
-// processCommentsWithTitles(titles);
-
-function printSlice(slice) {
-  console.log('>>> Children in this slice', slice.children.length);
-  slice.children.forEach(function(child) {
-    console.log('[score: ' + child.data.score + '] ' + child.data);
-  });
-}
 
 function getComment(item) {
     return '---\n>' 
@@ -155,8 +52,9 @@ function handleChild(child) {
 
     var results = [];
     XRegExp.forEach(child.data.body, regex, function (match, i) {
+        var book = dictionary[match[1].toLowerCase()].replace(/ /g, '_');
         results.push({
-            book: match[1].replace(/ /g, '_'),
+            book: book,
             chapter: match[2],
             verse: match[3]
         })
@@ -170,7 +68,7 @@ function handleChild(child) {
         return sefaria.getText(psuk.book, psuk.chapter, psuk.verse)
             .then(text => {
                 return {
-                    text_en: text.text,
+                    text_en: trim(striptags(text.text)),
                     text_he: text.he,
                     book: psuk.book,
                     chapter: psuk.chapter,
@@ -225,15 +123,30 @@ function fetchComments() {
         });
 }
 
+var dictionary = {};
+titles.forEach(title => {
+    dictionary[title.toLowerCase()] = title;
+})
+
+var keys = [];
+for (var key in dictionary) {
+    if (dictionary.hasOwnProperty(key)) {
+        keys.push(key);
+    }
+}
+
 // get regex
-var str = titles.reduce((prev, curr) => {
+var str = keys.reduce((prev, curr) => {
     if (prev === '')
         return curr;
     else
         return prev + '|' + curr;
 }, '')
 
-var regex = XRegExp(`(${str})\\W+([0-9]+):([0-9]+)`);
+var regex = XRegExp(`(${str})\\W+([0-9]+):([0-9]+)`,'i');
 
+// initial fetch to get the name of the latest comment
 initialFetchComments();
+
+//then run every 5 seconds after
 setInterval(fetchComments, 5000);
