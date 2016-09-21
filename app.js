@@ -3,8 +3,8 @@ var sefaria = require('./sefaria.js');
 var config = require('./config.json');
 var XRegExp = require('xregexp');
 
-// const subredditComments = '/r/judaism/comments';
-const subredditComments = '/r/test/comments';
+const subredditComments = '/r/judaism/comments';
+// const subredditComments = '/r/test/comments';
 
 var latestComment;
 var numUpdates = 0;
