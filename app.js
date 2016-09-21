@@ -5,8 +5,8 @@ var XRegExp = require('xregexp');
 var striptags = require('striptags');
 var trim = require('trim');
 
-// const subredditComments = '/r/judaism/comments';
-const subredditComments = '/r/test/comments';
+const subredditComments = '/r/judaism/comments';
+// const subredditComments = '/r/test/comments';
 var latestComment;
 var numUpdates = 0;
 var header = '^בס\"ד'; //todo add to top of comment
