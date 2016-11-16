@@ -5,12 +5,15 @@ var XRegExp = require('xregexp');
 var striptags = require('striptags');
 var trim = require('trim');
 
-const subredditComments = '/r/judaism/comments';
+// const subredditComments = '/r/judaism/comments';
 // const subredditComments = '/r/test/comments';
+// hard mode
+const subredditComments = '/r/all/comments';
+
 var latestComment;
 var numUpdates = 0;
-var header = '^בס\"ד'; //todo add to top of comment
-var footer = '---\n^\/u\/TorahBot ^is ^powered ^by ^[Sefaria](http:\/\/www.sefaria.org).\n\n';
+var header = '^בס\"ד\n\n'; //todo add to top of comment
+var footer = '---\n^[ס](http:\/\/www.sefaria.org).\n\n';
 
 // Our new instance associated with a single account.
 // It takes in various configuration options.
@@ -30,6 +33,7 @@ var reddit = new Snoocore({
 });
 
 var titles = require('./titles.json');
+var _titles = require('./titles.js');
 
 function getComment(item) {
     return '---\n>' 
@@ -46,20 +50,28 @@ function getComment(item) {
         + ')\n\n';
 }
 
-function handleChild(child) {
+// this function will return all matches
+function getMatches(text) {
+// todo stuff here and don't forget to test it.
+}
 
+function handleChild(child) {
+    // if I was the author of this comment, toss it.
     if (child.data.author === 'TorahBot')
         return;
 
-    var results = [];
-    XRegExp.forEach(child.data.body, regex, function (match, i) {
-        var book = dictionary[match[1].toLowerCase()].replace(/ /g, '_');
-        results.push({
-            book: book,
-            chapter: match[2],
-            verse: match[3]
-        })
-    });
+    // first thing to do is try and see if we have any matches and if so
+    // add results to array of results.
+    // var results = [];
+    // XRegExp.forEach(child.data.body, regex, function (match, i) {
+    //     var book = dictionary[match[1].toLowerCase()].replace(/ /g, '_');
+    //     results.push({
+    //         book: book,
+    //         chapter: match[2],
+    //         verse: match[3]
+    //     })
+    // });
+    var results = getMatches(child.data.body);
 
     console.log('text: ' + child.data.body);
     console.log('matches: ' + results);
@@ -82,7 +94,7 @@ function handleChild(child) {
 
     Promise.all(promises)
         .then(results => {
-            var comment = '';
+            var comment = header;
             results.forEach(item => {
                 if (item.text_he === '') return;
                 comment = comment + getComment(item);
@@ -91,18 +103,25 @@ function handleChild(child) {
         })
         .then(comment => {
             if (comment === '') throw 'no comment';
-            reddit('/api/comment').post({
-                api_type: 'json',
-                // text: comment +  '---\n^\/u\/TorahBot ^is ^powered ^by ^[Sefaria](http:\/\/www.sefaria.org).\n\n',
-                text: comment +  footer,
-                thing_id: child.data.name
-            }).catch(function (error) {
-                console.log("unable to respond: " + error)
-            });
+            else {
+                console.log('comment=' + comment)
+            }
+            replyToChildWithComment(child, comment);
         })
         .catch(error => {
             console.log(error);
         });
+}
+
+function replyToChildWithComment(child, comment) {
+    reddit('/api/comment').post({
+        api_type: 'json',
+        text: comment +  footer,
+        thing_id: child.data.name
+    }).catch(function (error) {
+        console.log("unable to respond: " + error)
+    });
+
 }
 
 function initialFetchComments() {
@@ -120,8 +139,11 @@ function fetchComments() {
     console.log("fetching with latestComment = " + latestComment.name)
     reddit(subredditComments).listing({ limit: 100, before: latestComment.name})
         .then(slice => {
-            if (slice.children.length > 0)
+            console.log("got " + slice.children.length + " children.")
+            if (slice.children.length > 0) {
                 latestComment = slice.children[0].data;
+                console.log("new latest comment: " + latestComment.name);
+            }
             slice.children.forEach(child => handleChild(child));
         });
 }
