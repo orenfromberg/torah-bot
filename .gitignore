@@ -1,5 +1,6 @@
 # private info
 config.json
+.env
 
 # Logs
 logs

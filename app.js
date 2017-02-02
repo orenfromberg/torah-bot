@@ -1,58 +1,59 @@
-var Snoocore = require('snoocore');
-var sefaria = require('./sefaria.js');
-var config = require('./config.json');
-var XRegExp = require('xregexp');
-var striptags = require('striptags');
-var trim = require('trim');
+require('dotenv').config()
+let snoowrap = require('snoowrap');
+let XRegExp = require('xregexp');
+let titles = require('./titles.json');
 
-const subredditComments = '/r/judaism/comments';
-// const subredditComments = '/r/test/comments';
-var latestComment;
-var numUpdates = 0;
-var header = '^בס\"ד'; //todo add to top of comment
-var footer = '---\n^\/u\/TorahBot ^is ^powered ^by ^[Sefaria](http:\/\/www.sefaria.org).\n\n';
+const subReddit = 'test'; //'judaism';
 
-// Our new instance associated with a single account.
-// It takes in various configuration options.
-var reddit = new Snoocore({
-    userAgent: '/u/TorahBot torah-bot@1.0.0', // unique string identifying the app
-    oauth: {
-        type: 'script',
-        key: config['key'], // OAuth client key (provided at reddit app)
-        secret: config['secret'], // OAuth secret (provided at reddit app)
-        username: config['username'], // Reddit username used to make the reddit app
-        password: config['password'], // Reddit password for the username
-        // The OAuth scopes that we need to make the calls that we 
-        // want. The reddit documentation will specify which scope
-        // is needed for evey call
-        scope: ['identity', 'read', 'vote', 'privatemessages', 'submit']
-    }
+const r = new snoowrap({
+  userAgent: process.env.USER_AGENT,
+  clientId: process.env.CLIENT_ID,
+  clientSecret: process.env.CLIENT_SECRET,
+  refreshToken: process.env.REFRESH_TOKEN
 });
 
-var titles = require('./titles.json');
+let dictionary = {};
+titles.forEach(title => {
+    dictionary[title.toLowerCase()] = title;
+})
 
-function getComment(item) {
-    return '---\n>' 
-        + item.text_he + '\n\n'
-        + '_\"' + item.text_en + '\"_  \n'
-        + '[' 
-        + item.book + ' '
-        + item.chapter + ':'
-        + item.verse + ']('
-        + 'http:\/\/www.sefaria.org\/'
-        + item.book + '.'
-        + item.chapter + '.'
-        + item.verse
-        + ')\n\n';
+
+let keys = [];
+for (var key in dictionary) {
+    if (dictionary.hasOwnProperty(key)) {
+        keys.push(key);
+    }
 }
 
-function handleChild(child) {
+// get regex
+let str = keys.reduce((prev, curr) => {
+    if (prev === '')
+        return curr;
+    else
+        return prev + '|' + curr;
+}, '')
 
-    if (child.data.author === 'TorahBot')
+let regex = XRegExp(`(${str})\\W+([0-9]+):([0-9]+)`,'i');
+
+const processComment = comment => {
+    // console.log(comment.author.name);
+    // return;
+
+    // get the id of the comment. look for citations. 
+    // if there are citations in the comment, add the comment id to a mongo
+    // collection of comments with citations where the key is the comment id and
+    // the data is whether it has been replied to. Then add the citations to another
+    // collection where data includes the comment id, book,
+    // chapter, and verse of the citation.
+
+    // later, when we have an app that is processing those comments, it will query all
+    // unanswered comments, and iterate over them, answering them one at a time.
+
+    if (comment.author.name === 'TorahBot')
         return;
 
-    var results = [];
-    XRegExp.forEach(child.data.body, regex, function (match, i) {
+    let results = [];
+    XRegExp.forEach(comment.body, regex, (match, i) => {
         var book = dictionary[match[1].toLowerCase()].replace(/ /g, '_');
         results.push({
             book: book,
@@ -61,95 +62,19 @@ function handleChild(child) {
         })
     });
 
-    console.log('text: ' + child.data.body);
-    console.log('matches: ' + results);
+    if (results.length > 0) {
+        console.log("found " + results.length + " citations for comment " + comment.id);
 
-    // we have results, now fetch from sefaria.
+        // add comment to collection of comments in mongodb
 
-    var promises = results.map(psuk => {
-        return sefaria.getText(psuk.book, psuk.chapter, psuk.verse)
-            .then(text => {
-                return {
-                    text_en: trim(striptags(text.text)),
-                    text_he: text.he,
-                    book: psuk.book,
-                    chapter: psuk.chapter,
-                    verse: psuk.verse
-                }
-            })
-            .catch(error => console.log(error))
-    })
-
-    Promise.all(promises)
-        .then(results => {
-            var comment = '';
-            results.forEach(item => {
-                if (item.text_he === '') return;
-                comment = comment + getComment(item);
-            })
-            return comment;
-        })
-        .then(comment => {
-            if (comment === '') throw 'no comment';
-            reddit('/api/comment').post({
-                api_type: 'json',
-                // text: comment +  '---\n^\/u\/TorahBot ^is ^powered ^by ^[Sefaria](http:\/\/www.sefaria.org).\n\n',
-                text: comment +  footer,
-                thing_id: child.data.name
-            }).catch(function (error) {
-                console.log("unable to respond: " + error)
-            });
-        })
-        .catch(error => {
-            console.log(error);
-        });
-}
-
-function initialFetchComments() {
-    reddit(subredditComments).listing({ limit: 100 })
-        .then(slice => {
-            if (slice.children.length > 0)
-                latestComment = slice.children[0].data;
-        });
-}
-
-// fetch the comments that have not been handled yet.
-function fetchComments() {
-    numUpdates++;
-    console.log("num updates = " + numUpdates);
-    console.log("fetching with latestComment = " + latestComment.name)
-    reddit(subredditComments).listing({ limit: 100, before: latestComment.name})
-        .then(slice => {
-            if (slice.children.length > 0)
-                latestComment = slice.children[0].data;
-            slice.children.forEach(child => handleChild(child));
-        });
-}
-
-var dictionary = {};
-titles.forEach(title => {
-    dictionary[title.toLowerCase()] = title;
-})
-
-var keys = [];
-for (var key in dictionary) {
-    if (dictionary.hasOwnProperty(key)) {
-        keys.push(key);
+        // add citations to collection of citations in mongodb
+    } else {
+        console.log("no results found for comment " + comment.id)
     }
 }
 
-// get regex
-var str = keys.reduce((prev, curr) => {
-    if (prev === '')
-        return curr;
-    else
-        return prev + '|' + curr;
-}, '')
+const processComments = comments => {
+    comments.forEach(processComment);
+}
 
-var regex = XRegExp(`(${str})\\W+([0-9]+):([0-9]+)`,'i');
-
-// initial fetch to get the name of the latest comment
-initialFetchComments();
-
-//then run every 5 seconds after
-setInterval(fetchComments, 5000);
+r.getSubreddit(subReddit).getNewComments({limit:100}).then(processComments);
